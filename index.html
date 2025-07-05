@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Emerald Wallkill Watershed Watch</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.fullscreen@2.4.0/Control.FullScreen.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="header-title">The Emerald Wallkill Watershed Watch</h1>
+                <p class="header-subtitle">Community-led environmental monitoring and protection</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="real-time-indicator">
+        <span>Live Updates</span>
+    </div>
+
+    <nav class="nav-tabs">
+        <div class="container">
+            <div class="tabs-container">
+                <button class="tab-button active" data-tab="home">Home</button>
+                <button class="tab-button" data-tab="map">Interactive Map</button>
+                <button class="tab-button" data-tab="data">Community Data</button>
+                <button class="tab-button" data-tab="monitoring">Water Quality</button>
+                <button class="tab-button" data-tab="habs">HABs Alert</button>
+                <button class="tab-button" data-tab="volunteer">Get Involved</button>
+                <button class="tab-button" data-tab="education">Education</button>
+                <button class="tab-button" data-tab="about">About</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Home Tab -->
+            <div class="tab-content active" id="home">
+                <div class="hero-section">
+                    <h2>Current Water Status</h2>
+                    <div class="status-grid">
+                        <div class="status-card">
+                            <h3>Overall Water Quality</h3>
+                            <div class="status status--success">SAFE</div>
+                            <p>Latest readings show healthy water conditions</p>
+                        </div>
+                        <div class="status-card">
+                            <h3>Active Monitoring Sites</h3>
+                            <div class="big-number">10</div>
+                            <p>Sites currently being monitored</p>
+                        </div>
+                        <div class="status-card">
+                            <h3>Community Volunteers</h3>
+                            <div class="big-number">47</div>
+                            <p>Active citizen scientists</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <span class="activity-date">July 2, 2025</span>
+                            <span class="activity-text">Water quality sampling completed at New Paltz Village Boat Launch</span>
+                        </div>
+                        <div class="activity-item">
+                            <span class="activity-date">July 1, 2025</span>
+                            <span class="activity-text">Community report submitted for Sojourner Truth Park</span>
+                        </div>
+                        <div class="activity-item">
+                            <span class="activity-date">June 30, 2025</span>
+                            <span class="activity-text">Monitoring data updated for Route 299 Bridge</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert-section">
+                    <h3>Current Alerts</h3>
+                    <div class="alert-item status--warning">
+                        <strong>Weather Advisory:</strong> Heavy rainfall expected this weekend - increased runoff and potential water quality impacts
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Map Tab -->
+            <div class="tab-content" id="map">
+                <h2>Interactive River Map</h2>
+                <div class="map-container">
+                    <div id="leaflet-map"></div>
+                    <div class="map-legend">
+                        <h4>Map Legend</h4>
+                        <div class="legend-item">
+                            <div class="legend-marker primary"></div>
+                            <span>Primary Monitoring Site</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker recreational"></div>
+                            <span>Recreational Access</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker monitoring"></div>
+                            <span>Monitoring Station</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker usgs"></div>
+                            <span>USGS Station</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-marker tributary"></div>
+                            <span>Tributary Site</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Community Data Tab -->
+            <div class="tab-content" id="data">
+                <h2>Community Data & Reports</h2>
+                <div class="data-grid">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Submit a Report</h3>
+                            <form class="report-form">
+                                <div class="form-group">
+                                    <label for="location" class="form-label">Location</label>
+                                    <select id="location" class="form-control">
+                                        <option value="">Select a location...</option>
+                                        <option value="WK-001">New Paltz Village Boat Launch</option>
+                                        <option value="WK-002">Sojourner Truth Park</option>
+                                        <option value="WK-003">Route 299 Bridge</option>
+                                        <option value="WK-004">Wallkill Valley Rail Trail Bridge</option>
+                                        <option value="WK-005">Ulster County Fairgrounds</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="observation" class="form-label">Observation</label>
+                                    <textarea id="observation" class="form-control" rows="3" placeholder="Describe what you observed..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="photos" class="form-label">Upload Photos</label>
+                                    <input type="file" id="photos" class="form-control" multiple accept="image/*">
+                                </div>
+                                <button type="submit" class="btn btn--primary">Submit Report</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Recent Community Reports</h3>
+                            <div class="report-list">
+                                <div class="report-item">
+                                    <div class="report-header">
+                                        <span class="report-date">July 2, 2025</span>
+                                        <span class="status status--success">Verified</span>
+                                    </div>
+                                    <p><strong>Wallkill Rail Trail:</strong> Water appears clear, no unusual odors</p>
+                                    <small>2 photos attached</small>
+                                </div>
+                                <div class="report-item">
+                                    <div class="report-header">
+                                        <span class="report-date">June 30, 2025</span>
+                                        <span class="status status--warning">Pending</span>
+                                    </div>
+                                    <p><strong>Sojourner Truth Park:</strong> Green tinge noticed in shallow areas</p>
+                                    <small>3 photos attached</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="participation-stats">
+                    <h3>Community Participation</h3>
+                    <div class="stats-container">
+                        <canvas id="participationChart"></canvas>
+                    </div>
+                    <div class="data-export-section">
+                        <button id="exportData" class="btn btn--outline">Export Data (JSON)</button>
+                        <small>Download all collected data for analysis</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Water Quality Monitoring Tab -->
+            <div class="tab-content" id="monitoring">
+                <h2>Water Quality Monitoring</h2>
+                <div class="monitoring-grid">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Latest Readings</h3>
+                            <div class="readings-list">
+                                <div class="reading-item">
+                                    <span class="reading-label">Temperature</span>
+                                    <span class="reading-value">24.5°C</span>
+                                    <span class="reading-location">New Paltz Village</span>
+                                </div>
+                                <div class="reading-item">
+                                    <span class="reading-label">pH Level</span>
+                                    <span class="reading-value">8.2</span>
+                                    <span class="reading-location">New Paltz Village</span>
+                                </div>
+                                <div class="reading-item">
+                                    <span class="reading-label">Dissolved Oxygen</span>
+                                    <span class="reading-value">6.8 mg/L</span>
+                                    <span class="reading-location">New Paltz Village</span>
+                                </div>
+                                <div class="reading-item">
+                                    <span class="reading-label">Microcystins</span>
+                                    <span class="reading-value">0.8 μg/L</span>
+                                    <span class="reading-location">New Paltz Village</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Temperature Trends</h3>
+                            <div class="chart-container">
+                                <canvas id="temperatureChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="embedded-maps">
+                    <h3>Satellite and Advanced Mapping</h3>
+                    <div class="maps-grid">
+                        <div class="map-embed">
+                            <h4>Copernicus Satellite Data</h4>
+                            <div class="iframe-container">
+                                <a href="https://link.dataspace.copernicus.eu/3eo5" target="_blank" class="btn btn--outline">View Satellite Data</a>
+                            </div>
+                        </div>
+                        <div class="map-embed">
+                            <h4>TerraImpacts Analysis</h4>
+                            <div class="iframe-container">
+                                <iframe src="https://terraimpacts.maps.arcgis.com/apps/instant/basic/index.html?appid=d898749d57ec4beaa1e7f72819c7f385" width="100%" height="400" frameborder="0" allowfullscreen></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- HABs Alert Tab -->
+            <div class="tab-content" id="habs">
+                <h2>HABs Alert System</h2>
+                <div class="habs-status">
+                    <div class="status-indicator status--success">
+                        <h3>Current Status: SAFE</h3>
+                        <p>No harmful algal blooms detected in recent monitoring</p>
+                    </div>
+                </div>
+
+                <div class="habs-grid">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Recent HAB Incidents</h3>
+                            <div class="incident-list">
+                                <div class="incident-item">
+                                    <div class="incident-header">
+                                        <span class="incident-date">June 15, 2025</span>
+                                        <span class="status status--warning">Moderate</span>
+                                    </div>
+                                    <p><strong>Location:</strong> Route 299 Bridge area</p>
+                                    <p><strong>Duration:</strong> 5 days</p>
+                                    <p><strong>Status:</strong> Resolved</p>
+                                </div>
+                                <div class="incident-item">
+                                    <div class="incident-header">
+                                        <span class="incident-date">May 28, 2025</span>
+                                        <span class="status status--info">Low</span>
+                                    </div>
+                                    <p><strong>Location:</strong> New Paltz Village area</p>
+                                    <p><strong>Duration:</strong> 2 days</p>
+                                    <p><strong>Status:</strong> Resolved</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>HAB Identification Guide</h3>
+                            <div class="identification-guide">
+                                <div class="guide-item">
+                                    <h4>What to Look For:</h4>
+                                    <ul>
+                                        <li>Blue-green, green, or reddish colored water</li>
+                                        <li>Scums, mats, or algae on the surface</li>
+                                        <li>Musty or earthy odors</li>
+                                        <li>Dead fish or other aquatic life</li>
+                                    </ul>
+                                </div>
+                                <div class="guide-item">
+                                    <h4>Safety Protocols:</h4>
+                                    <ul>
+                                        <li>Avoid contact with affected water</li>
+                                        <li>Don't let pets drink from or swim in affected areas</li>
+                                        <li>Report suspected blooms immediately</li>
+                                        <li>Seek medical attention if exposed</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="report-hab">
+                    <h3>Report a Suspected HAB</h3>
+                    <div class="card">
+                        <div class="card__body">
+                            <form class="hab-report-form">
+                                <div class="form-group">
+                                    <label for="hab-location" class="form-label">Location</label>
+                                    <input type="text" id="hab-location" class="form-control" placeholder="Be as specific as possible">
+                                </div>
+                                <div class="form-group">
+                                    <label for="hab-description" class="form-label">Description</label>
+                                    <textarea id="hab-description" class="form-control" rows="3" placeholder="Describe what you observed (color, smell, extent, etc.)"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label for="hab-photos" class="form-label">Photos</label>
+                                    <input type="file" id="hab-photos" class="form-control" multiple accept="image/*">
+                                </div>
+                                <button type="submit" class="btn btn--primary">Submit HAB Report</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Get Involved Tab -->
+            <div class="tab-content" id="volunteer">
+                <h2>Get Involved</h2>
+                <div class="volunteer-hero">
+                    <h3>Join Our Community of Citizen Scientists</h3>
+                    <p>Help protect the Wallkill River through community monitoring and stewardship</p>
+                </div>
+
+                <div class="volunteer-grid">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Volunteer Opportunities</h3>
+                            <div class="opportunity-list">
+                                <div class="opportunity-item">
+                                    <h4>Water Quality Monitoring</h4>
+                                    <p>Collect water samples and record observations at monitoring sites</p>
+                                    <span class="commitment">Time commitment: 2-3 hours/month</span>
+                                </div>
+                                <div class="opportunity-item">
+                                    <h4>Community Education</h4>
+                                    <p>Help educate the public about water quality and HABs</p>
+                                    <span class="commitment">Time commitment: Flexible</span>
+                                </div>
+                                <div class="opportunity-item">
+                                    <h4>Data Entry & Analysis</h4>
+                                    <p>Help process and analyze collected data</p>
+                                    <span class="commitment">Time commitment: 1-2 hours/week</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Volunteer Registration</h3>
+                            <form class="volunteer-form">
+                                <div class="form-group">
+                                    <label for="volunteer-name" class="form-label">Full Name</label>
+                                    <input type="text" id="volunteer-name" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="volunteer-email" class="form-label">Email</label>
+                                    <input type="email" id="volunteer-email" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="volunteer-phone" class="form-label">Phone</label>
+                                    <input type="tel" id="volunteer-phone" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label for="volunteer-interests" class="form-label">Areas of Interest</label>
+                                    <select id="volunteer-interests" class="form-control" multiple>
+                                        <option value="monitoring">Water Quality Monitoring</option>
+                                        <option value="education">Community Education</option>
+                                        <option value="data">Data Entry & Analysis</option>
+                                        <option value="outreach">Public Outreach</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn--primary">Register to Volunteer</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="training-section">
+                    <h3>Training & Resources</h3>
+                    <div class="training-grid">
+                        <div class="training-item">
+                            <h4>Next Training Session</h4>
+                            <p><strong>Date:</strong> July 15, 2025</p>
+                            <p><strong>Time:</strong> 10:00 AM - 12:00 PM</p>
+                            <p><strong>Location:</strong> New Paltz Community Center</p>
+                            <button class="btn btn--outline">Register</button>
+                        </div>
+                        <div class="training-item">
+                            <h4>Online Training Materials</h4>
+                            <p>Access our comprehensive training resources</p>
+                            <button class="btn btn--outline">Access Materials</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Education Tab -->
+            <div class="tab-content" id="education">
+                <h2>Educational Resources</h2>
+                <div class="education-grid">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Understanding Water Quality</h3>
+                            <div class="education-content">
+                                <h4>Key Water Quality Parameters</h4>
+                                <div class="parameter-list">
+                                    <div class="parameter-item">
+                                        <h5>Temperature</h5>
+                                        <p>Affects oxygen levels and aquatic life. Normal range: 15-25°C</p>
+                                    </div>
+                                    <div class="parameter-item">
+                                        <h5>pH Level</h5>
+                                        <p>Measures acidity/alkalinity. Normal range: 6.5-8.5</p>
+                                    </div>
+                                    <div class="parameter-item">
+                                        <h5>Dissolved Oxygen</h5>
+                                        <p>Essential for aquatic life. Normal range: >5 mg/L</p>
+                                    </div>
+                                    <div class="parameter-item">
+                                        <h5>Turbidity</h5>
+                                        <p>Measures water clarity. Lower values indicate clearer water</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Know It, Avoid It, Report It</h3>
+                            <div class="campaign-content">
+                                <div class="campaign-step">
+                                    <h4>KNOW IT</h4>
+                                    <p>Learn to identify harmful algal blooms by their appearance and smell</p>
+                                </div>
+                                <div class="campaign-step">
+                                    <h4>AVOID IT</h4>
+                                    <p>Stay away from affected water and keep pets away</p>
+                                </div>
+                                <div class="campaign-step">
+                                    <h4>REPORT IT</h4>
+                                    <p>Report suspected blooms to help protect the community</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="watershed-protection">
+                    <h3>Watershed Protection Tips</h3>
+                    <div class="tips-grid">
+                        <div class="tip-item">
+                            <h4>Reduce Nutrient Runoff</h4>
+                            <ul>
+                                <li>Use phosphorus-free detergents</li>
+                                <li>Properly maintain septic systems</li>
+                                <li>Create buffer zones near water</li>
+                            </ul>
+                        </div>
+                        <div class="tip-item">
+                            <h4>Sustainable Practices</h4>
+                            <ul>
+                                <li>Minimize lawn fertilizer use</li>
+                                <li>Plant native vegetation</li>
+                                <li>Properly dispose of pet waste</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- About Tab -->
+            <div class="tab-content" id="about">
+                <h2>About The Project</h2>
+                <div class="about-content">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Our Mission</h3>
+                            <p>Community-led environmental monitoring and protection of the Wallkill River through citizen science and collaborative stewardship</p>
+                        </div>
+                    </div>
+
+                    <div class="partners-section">
+                        <h3>Project Partners</h3>
+                        <div class="partners-grid">
+                            <div class="partner-item">Bard College Community Sciences Lab</div>
+                            <div class="partner-item">NYenvironcom</div>
+                            <div class="partner-item">Wallkill River Watershed Alliance</div>
+                            <div class="partner-item">Riverkeeper</div>
+                            <div class="partner-item">Ulster County Health Department</div>
+                        </div>
+                    </div>
+
+                    <div class="project-stats">
+                        <h3>Project Impact</h3>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">156</div>
+                                <div class="stat-label">Samples Collected in 2025</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">89</div>
+                                <div class="stat-label">Community Reports</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">12</div>
+                                <div class="stat-label">Training Sessions</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">47</div>
+                                <div class="stat-label">Active Volunteers</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contact-section">
+                        <h3>Contact Us</h3>
+                        <div class="contact-info">
+                            <p><strong>Email:</strong> info@wallkillwatch.org</p>
+                            <p><strong>Phone:</strong> (845) 555-RIVER</p>
+                            <p><strong>Mailing Address:</strong> P.O. Box 123, New Paltz, NY 12561</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 The Emerald Wallkill Watershed Watch. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
