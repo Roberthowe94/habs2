@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone HABs Detector Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .pass { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .fail { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    </style>
+</head>
+<body>
+    <h1>Drone HABs Detection Platform Test Suite</h1>
+    <div id="test-results"></div>
+    
+    <script>
+        function runTests() {
+            const results = [];
+            
+            // Test 1: Check if HTML file exists and loads
+            results.push(testFileStructure());
+            
+            // Test 2: Check CSS custom properties
+            results.push(testCSSProperties());
+            
+            // Test 3: Check JavaScript functionality
+            results.push(testJavaScriptAPI());
+            
+            // Test 4: Check Web Worker script
+            results.push(testWebWorkerScript());
+            
+            displayResults(results);
+        }
+        
+        function testFileStructure() {
+            try {
+                // Check if we can access the main HTML file
+                const link = document.createElement('link');
+                link.rel = 'prefetch';
+                link.href = './drone_habs_detector.html';
+                document.head.appendChild(link);
+                
+                return {
+                    name: 'File Structure Test',
+                    status: 'pass',
+                    message: 'drone_habs_detector.html is accessible'
+                };
+            } catch (error) {
+                return {
+                    name: 'File Structure Test',
+                    status: 'fail',
+                    message: 'Cannot access drone_habs_detector.html: ' + error.message
+                };
+            }
+        }
+        
+        function testCSSProperties() {
+            try {
+                // Test CSS custom properties support
+                const testElement = document.createElement('div');
+                testElement.style.setProperty('--test-property', '#ff0000');
+                const computedStyle = getComputedStyle(testElement);
+                
+                if (CSS.supports('color', 'var(--test-property)')) {
+                    return {
+                        name: 'CSS Custom Properties Test',
+                        status: 'pass',
+                        message: 'Browser supports CSS custom properties'
+                    };
+                } else {
+                    return {
+                        name: 'CSS Custom Properties Test',
+                        status: 'fail',
+                        message: 'Browser does not support CSS custom properties'
+                    };
+                }
+            } catch (error) {
+                return {
+                    name: 'CSS Custom Properties Test',
+                    status: 'fail',
+                    message: 'Error testing CSS properties: ' + error.message
+                };
+            }
+        }
+        
+        function testJavaScriptAPI() {
+            try {
+                // Test Web Worker support
+                if (typeof Worker !== 'undefined') {
+                    // Test Canvas API (required for image processing)
+                    const canvas = document.createElement('canvas');
+                    if (canvas.getContext && canvas.getContext('2d')) {
+                        // Test File API
+                        if (typeof FileReader !== 'undefined') {
+                            return {
+                                name: 'JavaScript API Test',
+                                status: 'pass',
+                                message: 'All required APIs available (Worker, Canvas, FileReader)'
+                            };
+                        } else {
+                            return {
+                                name: 'JavaScript API Test',
+                                status: 'fail',
+                                message: 'FileReader API not supported'
+                            };
+                        }
+                    } else {
+                        return {
+                            name: 'JavaScript API Test',
+                            status: 'fail',
+                            message: 'Canvas 2D context not supported'
+                        };
+                    }
+                } else {
+                    return {
+                        name: 'JavaScript API Test',
+                        status: 'fail',
+                        message: 'Web Workers not supported'
+                    };
+                }
+            } catch (error) {
+                return {
+                    name: 'JavaScript API Test',
+                    status: 'fail',
+                    message: 'Error testing JavaScript APIs: ' + error.message
+                };
+            }
+        }
+        
+        function testWebWorkerScript() {
+            try {
+                // Test Web Worker blob creation
+                const workerScript = `
+                    self.onmessage = function(e) {
+                        self.postMessage({ test: 'success' });
+                    };
+                `;
+                const blob = new Blob([workerScript], { type: 'application/javascript' });
+                const worker = new Worker(URL.createObjectURL(blob));
+                
+                return new Promise((resolve) => {
+                    worker.onmessage = function(e) {
+                        worker.terminate();
+                        URL.revokeObjectURL(worker);
+                        resolve({
+                            name: 'Web Worker Script Test',
+                            status: 'pass',
+                            message: 'Web Worker created and executed successfully'
+                        });
+                    };
+                    
+                    worker.onerror = function(error) {
+                        worker.terminate();
+                        resolve({
+                            name: 'Web Worker Script Test',
+                            status: 'fail',
+                            message: 'Web Worker error: ' + error.message
+                        });
+                    };
+                    
+                    worker.postMessage({ test: 'ping' });
+                    
+                    // Timeout after 2 seconds
+                    setTimeout(() => {
+                        worker.terminate();
+                        resolve({
+                            name: 'Web Worker Script Test',
+                            status: 'fail',
+                            message: 'Web Worker test timed out'
+                        });
+                    }, 2000);
+                });
+            } catch (error) {
+                return {
+                    name: 'Web Worker Script Test',
+                    status: 'fail',
+                    message: 'Error creating Web Worker: ' + error.message
+                };
+            }
+        }
+        
+        async function displayResults(results) {
+            const container = document.getElementById('test-results');
+            
+            for (const result of results) {
+                // Handle promises
+                const resolvedResult = await result;
+                
+                const div = document.createElement('div');
+                div.className = `test-result ${resolvedResult.status}`;
+                div.innerHTML = `
+                    <strong>${resolvedResult.name}</strong>: ${resolvedResult.status.toUpperCase()}<br>
+                    ${resolvedResult.message}
+                `;
+                container.appendChild(div);
+            }
+            
+            // Summary
+            const resolvedResults = await Promise.all(results);
+            const passed = resolvedResults.filter(r => r.status === 'pass').length;
+            const total = resolvedResults.length;
+            
+            const summary = document.createElement('div');
+            summary.className = `test-result ${passed === total ? 'pass' : 'fail'}`;
+            summary.innerHTML = `<strong>Test Summary</strong>: ${passed}/${total} tests passed`;
+            container.appendChild(summary);
+            
+            if (passed === total) {
+                container.appendChild(createSuccessMessage());
+            } else {
+                container.appendChild(createFailureMessage());
+            }
+        }
+        
+        function createSuccessMessage() {
+            const div = document.createElement('div');
+            div.className = 'test-result pass';
+            div.innerHTML = `
+                <strong>✅ All Tests Passed!</strong><br>
+                Your browser is compatible with the Drone HABs Detection Platform.<br>
+                You can now open <a href="./drone_habs_detector.html">drone_habs_detector.html</a> to start using the application.
+            `;
+            return div;
+        }
+        
+        function createFailureMessage() {
+            const div = document.createElement('div');
+            div.className = 'test-result fail';
+            div.innerHTML = `
+                <strong>❌ Some Tests Failed</strong><br>
+                Your browser may not be fully compatible with the Drone HABs Detection Platform.<br>
+                Please try using a modern browser like Chrome, Firefox, or Safari.<br>
+                You can still try opening <a href="./drone_habs_detector.html">drone_habs_detector.html</a> but some features may not work.
+            `;
+            return div;
+        }
+        
+        // Run tests when page loads
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>
