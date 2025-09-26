@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone HABs Detection Platform</title>
+    
+    <!-- External library dependencies from CDNs -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exif-js@2.3.0/exif.js"></script>
+    
+    <style>
+        /* CSS Custom Properties for theming */
+        :root {
+            /* Color palette */
+            --primary-color: #2e8b8b;
+            --primary-hover: #267575;
+            --secondary-color: #4a90a4;
+            --accent-color: #87ceeb;
+            --background-light: #f8fdff;
+            --background-dark: #1a1a2e;
+            --surface-light: #ffffff;
+            --surface-dark: #16213e;
+            --text-primary: #2c3e50;
+            --text-secondary: #7f8c8d;
+            --text-light: #ffffff;
+            --border-color: #e1e8ed;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --info-color: #3498db;
+            
+            /* Risk level colors */
+            --risk-pristine: #2ecc71;
+            --risk-good: #27ae60;
+            --risk-moderate: #f39c12;
+            --risk-high: #e67e22;
+            --risk-extreme: #e74c3c;
+            
+            /* Spacing */
+            --spacing-xs: 0.25rem;
+            --spacing-sm: 0.5rem;
+            --spacing-md: 1rem;
+            --spacing-lg: 1.5rem;
+            --spacing-xl: 2rem;
+            --spacing-2xl: 3rem;
+            
+            /* Typography */
+            --font-size-xs: 0.75rem;
+            --font-size-sm: 0.875rem;
+            --font-size-base: 1rem;
+            --font-size-lg: 1.125rem;
+            --font-size-xl: 1.25rem;
+            --font-size-2xl: 1.5rem;
+            --font-size-3xl: 2rem;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            
+            /* Border radius */
+            --radius-sm: 0.25rem;
+            --radius-md: 0.375rem;
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+        }
+        
+        /* Base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--background-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        /* Layout */
+        .app-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            grid-template-areas: 
+                "header header"
+                "sidebar main";
+        }
+        
+        .header {
+            grid-area: header;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--text-light);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .header h1 {
+            font-size: var(--font-size-2xl);
+            font-weight: 700;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: var(--font-size-base);
+        }
+        
+        .upload-area {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-lg);
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        
+        .file-input {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.5);
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+        
+        .file-input-label:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--surface-light);
+            border-right: 1px solid var(--border-color);
+            padding: var(--spacing-lg);
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            grid-area: main;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Sidebar components */
+        .control-section {
+            margin-bottom: var(--spacing-xl);
+        }
+        
+        .control-section h3 {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: var(--spacing-sm);
+        }
+        
+        .form-group {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .form-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            margin-bottom: var(--spacing-xs);
+            color: var(--text-secondary);
+        }
+        
+        .form-input, .form-select {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: var(--font-size-sm);
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(46, 139, 139, 0.1);
+        }
+        
+        .btn {
+            background: var(--primary-color);
+            color: var(--text-light);
+            border: none;
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: var(--primary-hover);
+        }
+        
+        .btn:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: var(--secondary-color);
+        }
+        
+        .btn-danger {
+            background: var(--danger-color);
+        }
+        
+        /* Map container */
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        /* Processing overlay */
+        .processing-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .processing-overlay.active {
+            display: flex;
+        }
+        
+        .processing-content {
+            background: var(--surface-light);
+            padding: var(--spacing-2xl);
+            border-radius: var(--radius-xl);
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto var(--spacing-md);
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            margin-top: var(--spacing-md);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        /* Results panel */
+        .results-panel {
+            position: absolute;
+            top: var(--spacing-md);
+            right: var(--spacing-md);
+            width: 300px;
+            background: var(--surface-light);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+            z-index: 999;
+            display: none;
+        }
+        
+        .results-panel.active {
+            display: block;
+        }
+        
+        .results-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .results-header h3 {
+            font-size: var(--font-size-lg);
+            font-weight: 600;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: var(--font-size-xl);
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: var(--spacing-xs);
+        }
+        
+        .results-content {
+            padding: var(--spacing-lg);
+        }
+        
+        .result-item {
+            margin-bottom: var(--spacing-lg);
+            padding: var(--spacing-md);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .result-title {
+            font-weight: 600;
+            font-size: var(--font-size-sm);
+        }
+        
+        .risk-badge {
+            padding: var(--spacing-xs) var(--spacing-sm);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .risk-pristine { background: var(--risk-pristine); color: white; }
+        .risk-good { background: var(--risk-good); color: white; }
+        .risk-moderate { background: var(--risk-moderate); color: white; }
+        .risk-high { background: var(--risk-high); color: white; }
+        .risk-extreme { background: var(--risk-extreme); color: white; }
+        
+        .result-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-sm);
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: var(--spacing-sm);
+            background: var(--background-light);
+            border-radius: var(--radius-sm);
+        }
+        
+        .stat-value {
+            font-weight: 600;
+            font-size: var(--font-size-lg);
+            color: var(--primary-color);
+        }
+        
+        .stat-label {
+            font-size: var(--font-size-xs);
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .export-section {
+            border-top: 1px solid var(--border-color);
+            padding: var(--spacing-lg);
+            display: flex;
+            gap: var(--spacing-sm);
+        }
+        
+        .export-btn {
+            flex: 1;
+            font-size: var(--font-size-xs);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+                grid-template-areas: 
+                    "header"
+                    "main";
+            }
+            
+            .sidebar {
+                position: absolute;
+                top: 0;
+                left: -300px;
+                height: 100%;
+                width: 300px;
+                z-index: 1001;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.open {
+                left: 0;
+            }
+            
+            .results-panel {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                width: 90vw;
+                max-width: 400px;
+                max-height: 80vh;
+            }
+            
+            .upload-area {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+        
+        /* Leaflet customizations */
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius-lg);
+        }
+        
+        .leaflet-popup-content {
+            font-family: inherit;
+        }
+        
+        .popup-header {
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--primary-color);
+        }
+        
+        .popup-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-xs);
+            margin-top: var(--spacing-sm);
+        }
+        
+        .popup-stat {
+            text-align: center;
+            padding: var(--spacing-xs);
+            background: var(--background-light);
+            border-radius: var(--radius-sm);
+            font-size: var(--font-size-xs);
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header with title and upload controls -->
+        <header class="header">
+            <h1>Drone HABs Detection Platform</h1>
+            <p>Advanced image processing for Harmful Algal Bloom detection using drone imagery</p>
+            
+            <div class="upload-area">
+                <div class="file-input-wrapper">
+                    <input type="file" id="imageInput" class="file-input" multiple accept="image/*">
+                    <label for="imageInput" class="file-input-label">
+                        📁 Select Drone Images
+                    </label>
+                </div>
+                <button id="processBtn" class="btn" disabled>🔬 Process Images</button>
+                <button id="clearBtn" class="btn btn-danger">🗑️ Clear All</button>
+            </div>
+        </header>
+        
+        <!-- Sidebar with algorithm settings -->
+        <aside class="sidebar">
+            <div class="control-section">
+                <h3>Algorithm Settings</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">PCI Threshold</label>
+                    <input type="range" id="pciThreshold" class="form-input" min="0" max="1" step="0.01" value="0.1">
+                    <span id="pciValue">0.10</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Chlorophyll-a Threshold</label>
+                    <input type="range" id="chlorophyllThreshold" class="form-input" min="0" max="100" step="1" value="30">
+                    <span id="chlorophyllValue">30 μg/L</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Blue-Green Algae Threshold</label>
+                    <input type="range" id="bgaThreshold" class="form-input" min="0" max="1" step="0.01" value="0.15">
+                    <span id="bgaValue">0.15</span>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Block Size (pixels)</label>
+                    <select id="blockSize" class="form-select">
+                        <option value="10">10x10</option>
+                        <option value="20" selected>20x20</option>
+                        <option value="50">50x50</option>
+                        <option value="100">100x100</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Detection Thresholds</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Risk Classification</label>
+                    <select id="riskMode" class="form-select">
+                        <option value="conservative">Conservative</option>
+                        <option value="standard" selected>Standard</option>
+                        <option value="aggressive">Aggressive</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Minimum Detection Area (%)</label>
+                    <input type="range" id="minArea" class="form-input" min="1" max="50" step="1" value="5">
+                    <span id="minAreaValue">5%</span>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Processing Queue</h3>
+                <div id="processingQueue">
+                    <p style="color: var(--text-secondary); font-style: italic;">No images selected</p>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Map Controls</h3>
+                <button id="toggleHeatmap" class="btn btn-secondary">🌡️ Toggle Heatmap</button>
+                <button id="fitBounds" class="btn btn-secondary">🎯 Fit to Data</button>
+                <button id="toggleSidebar" class="btn btn-secondary" style="display: none;">☰ Menu</button>
+            </div>
+        </aside>
+        
+        <!-- Main map container -->
+        <main class="main-content">
+            <div id="map"></div>
+            
+            <!-- Processing overlay -->
+            <div id="processingOverlay" class="processing-overlay">
+                <div class="processing-content">
+                    <div class="spinner"></div>
+                    <h3>Processing Images</h3>
+                    <p id="processingStatus">Initializing...</p>
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results panel -->
+            <div id="resultsPanel" class="results-panel">
+                <div class="results-header">
+                    <h3>Detection Results</h3>
+                    <button id="closeResults" class="close-btn">×</button>
+                </div>
+                <div class="results-content" id="resultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+                <div class="export-section">
+                    <button id="exportJSON" class="export-btn btn">JSON</button>
+                    <button id="exportCSV" class="export-btn btn">CSV</button>
+                    <button id="exportGeoJSON" class="export-btn btn">GeoJSON</button>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Embedded Web Worker Script -->
+    <script id="workerScript" type="javascript/worker">
+        // Web Worker for image processing
+        self.onmessage = function(e) {
+            const { imageData, settings, filename } = e.data;
+            
+            try {
+                const result = processImage(imageData, settings, filename);
+                self.postMessage({ success: true, result });
+            } catch (error) {
+                self.postMessage({ success: false, error: error.message });
+            }
+        };
+        
+        function processImage(imageData, settings, filename) {
+            const { width, height, data } = imageData;
+            const blockSize = parseInt(settings.blockSize);
+            const pciThreshold = parseFloat(settings.pciThreshold);
+            const chlorophyllThreshold = parseFloat(settings.chlorophyllThreshold);
+            const bgaThreshold = parseFloat(settings.bgaThreshold);
+            const minArea = parseFloat(settings.minArea);
+            
+            const results = {
+                filename,
+                width,
+                height,
+                totalBlocks: 0,
+                detectedBlocks: 0,
+                riskLevel: 'pristine',
+                pciValues: [],
+                chlorophyllValues: [],
+                bgaValues: [],
+                detectionMap: [],
+                statistics: {
+                    avgPCI: 0,
+                    maxPCI: 0,
+                    avgChlorophyll: 0,
+                    maxChlorophyll: 0,
+                    avgBGA: 0,
+                    maxBGA: 0,
+                    detectionPercentage: 0
+                }
+            };
+            
+            // Process image in blocks
+            for (let y = 0; y < height - blockSize; y += blockSize) {
+                for (let x = 0; x < width - blockSize; x += blockSize) {
+                    const blockData = extractBlock(data, x, y, blockSize, width);
+                    const blockResult = analyzeBlock(blockData, pciThreshold, chlorophyllThreshold, bgaThreshold);
+                    
+                    results.totalBlocks++;
+                    results.pciValues.push(blockResult.pci);
+                    results.chlorophyllValues.push(blockResult.chlorophyll);
+                    results.bgaValues.push(blockResult.bga);
+                    
+                    const isDetected = blockResult.pci > pciThreshold || 
+                                     blockResult.chlorophyll > chlorophyllThreshold || 
+                                     blockResult.bga > bgaThreshold;
+                    
+                    if (isDetected) {
+                        results.detectedBlocks++;
+                    }
+                    
+                    results.detectionMap.push({
+                        x, y, 
+                        detected: isDetected,
+                        pci: blockResult.pci,
+                        chlorophyll: blockResult.chlorophyll,
+                        bga: blockResult.bga
+                    });
+                }
+            }
+            
+            // Calculate statistics
+            if (results.pciValues.length > 0) {
+                results.statistics.avgPCI = results.pciValues.reduce((a, b) => a + b, 0) / results.pciValues.length;
+                results.statistics.maxPCI = Math.max(...results.pciValues);
+                results.statistics.avgChlorophyll = results.chlorophyllValues.reduce((a, b) => a + b, 0) / results.chlorophyllValues.length;
+                results.statistics.maxChlorophyll = Math.max(...results.chlorophyllValues);
+                results.statistics.avgBGA = results.bgaValues.reduce((a, b) => a + b, 0) / results.bgaValues.length;
+                results.statistics.maxBGA = Math.max(...results.bgaValues);
+                results.statistics.detectionPercentage = (results.detectedBlocks / results.totalBlocks) * 100;
+            }
+            
+            // Classify risk level
+            results.riskLevel = classifyRisk(results.statistics, settings.riskMode);
+            
+            return results;
+        }
+        
+        function extractBlock(imageData, x, y, blockSize, width) {
+            const block = [];
+            for (let by = 0; by < blockSize; by++) {
+                for (let bx = 0; bx < blockSize; bx++) {
+                    const idx = ((y + by) * width + (x + bx)) * 4;
+                    block.push({
+                        r: imageData[idx],
+                        g: imageData[idx + 1],
+                        b: imageData[idx + 2],
+                        a: imageData[idx + 3]
+                    });
+                }
+            }
+            return block;
+        }
+        
+        function analyzeBlock(blockData, pciThreshold, chlorophyllThreshold, bgaThreshold) {
+            let totalR = 0, totalG = 0, totalB = 0;
+            let validPixels = 0;
+            
+            blockData.forEach(pixel => {
+                if (pixel.a > 0) { // Skip transparent pixels
+                    totalR += pixel.r;
+                    totalG += pixel.g;
+                    totalB += pixel.b;
+                    validPixels++;
+                }
+            });
+            
+            if (validPixels === 0) {
+                return { pci: 0, chlorophyll: 0, bga: 0 };
+            }
+            
+            const avgR = totalR / validPixels;
+            const avgG = totalG / validPixels;
+            const avgB = totalB / validPixels;
+            
+            // PCI (Phycocyanin Index) calculation
+            const pci = calculatePCI(avgR, avgG, avgB);
+            
+            // Chlorophyll-a Index calculation
+            const chlorophyll = calculateChlorophyllA(avgR, avgG, avgB);
+            
+            // Blue-Green Algae Index calculation
+            const bga = calculateBGA(avgR, avgG, avgB);
+            
+            return { pci, chlorophyll, bga };
+        }
+        
+        function calculatePCI(r, g, b) {
+            // Simplified PCI calculation based on spectral ratios
+            // PCI typically uses specific wavelengths, this is an approximation using RGB
+            const blueGreenRatio = (b + g) / (r + 1);
+            const normalized = Math.min(1, Math.max(0, (blueGreenRatio - 1) / 3));
+            return normalized;
+        }
+        
+        function calculateChlorophyllA(r, g, b) {
+            // Simplified chlorophyll-a estimation using RGB values
+            // Based on empirical relationships between RGB and chlorophyll concentration
+            const greenRatio = g / (r + b + 1);
+            const chlorophyll = Math.max(0, (greenRatio - 0.3) * 150);
+            return Math.min(100, chlorophyll);
+        }
+        
+        function calculateBGA(r, g, b) {
+            // Blue-Green Algae index based on color ratios
+            const bgRatio = (b * g) / ((r * r) + 1);
+            const normalized = Math.min(1, Math.max(0, Math.sqrt(bgRatio) / 10));
+            return normalized;
+        }
+        
+        function classifyRisk(stats, riskMode) {
+            const { detectionPercentage, maxPCI, maxChlorophyll, maxBGA } = stats;
+            
+            // Risk thresholds based on mode
+            const thresholds = {
+                conservative: { pristine: 1, good: 3, moderate: 8, high: 15 },
+                standard: { pristine: 2, good: 5, moderate: 12, high: 25 },
+                aggressive: { pristine: 5, good: 10, moderate: 20, high: 35 }
+            };
+            
+            const t = thresholds[riskMode];
+            
+            if (detectionPercentage < t.pristine && maxPCI < 0.05 && maxChlorophyll < 10) {
+                return 'pristine';
+            } else if (detectionPercentage < t.good && maxPCI < 0.1 && maxChlorophyll < 20) {
+                return 'good';
+            } else if (detectionPercentage < t.moderate && maxPCI < 0.2 && maxChlorophyll < 40) {
+                return 'moderate';
+            } else if (detectionPercentage < t.high && maxPCI < 0.4 && maxChlorophyll < 60) {
+                return 'high';
+            } else {
+                return 'extreme';
+            }
+        }
+    </script>
+    
+    <!-- Main JavaScript Application -->
+    <script>
+        class DroneHABsDetector {
+            constructor() {
+                this.map = null;
+                this.markers = [];
+                this.results = [];
+                this.heatmapLayer = null;
+                this.worker = null;
+                this.processingQueue = [];
+                this.currentProcessing = 0;
+                
+                this.initializeWorker();
+                this.initializeMap();
+                this.bindEvents();
+                this.loadSettings();
+            }
+            
+            initializeWorker() {
+                // Create Web Worker from embedded script
+                const workerScript = document.getElementById('workerScript').textContent;
+                const blob = new Blob([workerScript], { type: 'application/javascript' });
+                this.worker = new Worker(URL.createObjectURL(blob));
+                
+                this.worker.onmessage = (e) => {
+                    this.handleWorkerResult(e.data);
+                };
+            }
+            
+            initializeMap() {
+                // Initialize Leaflet map
+                this.map = L.map('map').setView([41.7471, -74.0840], 10);
+                
+                // Add satellite imagery tile layer
+                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+                    maxZoom: 18
+                }).addTo(this.map);
+                
+                // Add drawing controls
+                const drawControl = new L.Control.Draw({
+                    edit: {
+                        featureGroup: new L.FeatureGroup().addTo(this.map)
+                    },
+                    draw: {
+                        polygon: true,
+                        polyline: true,
+                        rectangle: true,
+                        circle: true,
+                        marker: true
+                    }
+                });
+                this.map.addControl(drawControl);
+            }
+            
+            bindEvents() {
+                // File input handling
+                document.getElementById('imageInput').addEventListener('change', (e) => {
+                    this.handleFileSelection(e.target.files);
+                });
+                
+                // Process button
+                document.getElementById('processBtn').addEventListener('click', () => {
+                    this.processImages();
+                });
+                
+                // Clear button
+                document.getElementById('clearBtn').addEventListener('click', () => {
+                    this.clearAll();
+                });
+                
+                // Settings sliders
+                this.bindSlider('pciThreshold', 'pciValue', (val) => val.toFixed(2));
+                this.bindSlider('chlorophyllThreshold', 'chlorophyllValue', (val) => val + ' μg/L');
+                this.bindSlider('bgaThreshold', 'bgaValue', (val) => val.toFixed(2));
+                this.bindSlider('minArea', 'minAreaValue', (val) => val + '%');
+                
+                // Map controls
+                document.getElementById('toggleHeatmap').addEventListener('click', () => {
+                    this.toggleHeatmap();
+                });
+                
+                document.getElementById('fitBounds').addEventListener('click', () => {
+                    this.fitToData();
+                });
+                
+                // Results panel
+                document.getElementById('closeResults').addEventListener('click', () => {
+                    document.getElementById('resultsPanel').classList.remove('active');
+                });
+                
+                // Export buttons
+                document.getElementById('exportJSON').addEventListener('click', () => {
+                    this.exportData('json');
+                });
+                
+                document.getElementById('exportCSV').addEventListener('click', () => {
+                    this.exportData('csv');
+                });
+                
+                document.getElementById('exportGeoJSON').addEventListener('click', () => {
+                    this.exportData('geojson');
+                });
+                
+                // Responsive sidebar toggle
+                document.getElementById('toggleSidebar').addEventListener('click', () => {
+                    document.querySelector('.sidebar').classList.toggle('open');
+                });
+            }
+            
+            bindSlider(sliderId, valueId, formatter) {
+                const slider = document.getElementById(sliderId);
+                const valueElement = document.getElementById(valueId);
+                
+                if (slider && valueElement) {
+                    // Initial value
+                    valueElement.textContent = formatter(parseFloat(slider.value));
+                    
+                    slider.addEventListener('input', (e) => {
+                        valueElement.textContent = formatter(parseFloat(e.target.value));
+                    });
+                }
+            }
+            
+            handleFileSelection(files) {
+                this.processingQueue = [];
+                const queueElement = document.getElementById('processingQueue');
+                queueElement.innerHTML = '';
+                
+                Array.from(files).forEach((file, index) => {
+                    if (file.type.startsWith('image/')) {
+                        this.processingQueue.push({
+                            file,
+                            id: `img_${Date.now()}_${index}`,
+                            status: 'pending'
+                        });
+                        
+                        const queueItem = document.createElement('div');
+                        queueItem.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: var(--background-light); border-radius: var(--radius-md); margin-bottom: 0.5rem;">
+                                <span style="font-size: var(--font-size-sm);">${file.name}</span>
+                                <span class="status-badge" style="font-size: var(--font-size-xs); background: var(--info-color); color: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm);">Pending</span>
+                            </div>
+                        `;
+                        queueElement.appendChild(queueItem);
+                    }
+                });
+                
+                document.getElementById('processBtn').disabled = this.processingQueue.length === 0;
+            }
+            
+            async processImages() {
+                if (this.processingQueue.length === 0) return;
+                
+                const overlay = document.getElementById('processingOverlay');
+                const statusElement = document.getElementById('processingStatus');
+                const progressFill = document.getElementById('progressFill');
+                
+                overlay.classList.add('active');
+                this.currentProcessing = 0;
+                
+                for (const item of this.processingQueue) {
+                    try {
+                        statusElement.textContent = `Processing ${item.file.name}...`;
+                        progressFill.style.width = `${(this.currentProcessing / this.processingQueue.length) * 100}%`;
+                        
+                        const result = await this.processImage(item.file);
+                        item.result = result;
+                        item.status = 'completed';
+                        
+                        this.addResultToMap(result);
+                        
+                    } catch (error) {
+                        console.error(`Error processing ${item.file.name}:`, error);
+                        item.status = 'error';
+                        item.error = error.message;
+                    }
+                    
+                    this.currentProcessing++;
+                    progressFill.style.width = `${(this.currentProcessing / this.processingQueue.length) * 100}%`;
+                }
+                
+                overlay.classList.remove('active');
+                this.showResults();
+                this.saveSession();
+            }
+            
+            async processImage(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const img = new Image();
+                            img.onload = () => {
+                                // Extract GPS data from EXIF
+                                EXIF.getData(img, () => {
+                                    const lat = EXIF.getTag(img, "GPSLatitude");
+                                    const lon = EXIF.getTag(img, "GPSLongitude");
+                                    const latRef = EXIF.getTag(img, "GPSLatitudeRef");
+                                    const lonRef = EXIF.getTag(img, "GPSLongitudeRef");
+                                    
+                                    let gpsCoords = null;
+                                    if (lat && lon) {
+                                        gpsCoords = {
+                                            lat: this.convertDMSToDD(lat, latRef),
+                                            lng: this.convertDMSToDD(lon, lonRef)
+                                        };
+                                    }
+                                    
+                                    // Create canvas to get image data
+                                    const canvas = document.createElement('canvas');
+                                    const ctx = canvas.getContext('2d');
+                                    canvas.width = img.width;
+                                    canvas.height = img.height;
+                                    ctx.drawImage(img, 0, 0);
+                                    
+                                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                                    
+                                    // Get current settings
+                                    const settings = this.getCurrentSettings();
+                                    
+                                    // Send to worker
+                                    this.worker.postMessage({
+                                        imageData,
+                                        settings,
+                                        filename: file.name,
+                                        gpsCoords
+                                    });
+                                    
+                                    // Store resolve function for worker callback
+                                    this.currentResolve = resolve;
+                                    this.currentReject = reject;
+                                });
+                            };
+                            img.src = e.target.result;
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+            
+            handleWorkerResult(data) {
+                if (this.currentResolve) {
+                    if (data.success) {
+                        this.currentResolve(data.result);
+                    } else {
+                        this.currentReject(new Error(data.error));
+                    }
+                    this.currentResolve = null;
+                    this.currentReject = null;
+                }
+            }
+            
+            convertDMSToDD(dms, ref) {
+                let dd = dms[0] + dms[1] / 60 + dms[2] / 3600;
+                if (ref === "S" || ref === "W") dd = dd * -1;
+                return dd;
+            }
+            
+            getCurrentSettings() {
+                return {
+                    pciThreshold: document.getElementById('pciThreshold').value,
+                    chlorophyllThreshold: document.getElementById('chlorophyllThreshold').value,
+                    bgaThreshold: document.getElementById('bgaThreshold').value,
+                    blockSize: document.getElementById('blockSize').value,
+                    riskMode: document.getElementById('riskMode').value,
+                    minArea: document.getElementById('minArea').value
+                };
+            }
+            
+            addResultToMap(result) {
+                if (!result.gpsCoords) {
+                    // Use default location if no GPS data
+                    result.gpsCoords = {
+                        lat: 41.7471 + (Math.random() - 0.5) * 0.1,
+                        lng: -74.0840 + (Math.random() - 0.5) * 0.1
+                    };
+                }
+                
+                const { lat, lng } = result.gpsCoords;
+                const riskClass = `risk-${result.riskLevel}`;
+                
+                const marker = L.marker([lat, lng], {
+                    icon: this.createRiskIcon(result.riskLevel)
+                }).addTo(this.map);
+                
+                const popupContent = `
+                    <div class="popup-header">${result.filename}</div>
+                    <div class="risk-badge ${riskClass}">${result.riskLevel.toUpperCase()}</div>
+                    <div class="popup-stats">
+                        <div class="popup-stat">
+                            <strong>${result.statistics.detectionPercentage.toFixed(1)}%</strong><br>
+                            Detection
+                        </div>
+                        <div class="popup-stat">
+                            <strong>${result.statistics.maxPCI.toFixed(3)}</strong><br>
+                            Max PCI
+                        </div>
+                        <div class="popup-stat">
+                            <strong>${result.statistics.maxChlorophyll.toFixed(1)}</strong><br>
+                            Max Chl-a
+                        </div>
+                        <div class="popup-stat">
+                            <strong>${result.statistics.maxBGA.toFixed(3)}</strong><br>
+                            Max BGA
+                        </div>
+                    </div>
+                `;
+                
+                marker.bindPopup(popupContent);
+                this.markers.push(marker);
+                this.results.push(result);
+            }
+            
+            createRiskIcon(riskLevel) {
+                const colors = {
+                    pristine: '#2ecc71',
+                    good: '#27ae60',
+                    moderate: '#f39c12',
+                    high: '#e67e22',
+                    extreme: '#e74c3c'
+                };
+                
+                return L.divIcon({
+                    className: 'risk-marker',
+                    html: `<div style="background: ${colors[riskLevel]}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10]
+                });
+            }
+            
+            showResults() {
+                const panel = document.getElementById('resultsPanel');
+                const content = document.getElementById('resultsContent');
+                
+                content.innerHTML = '';
+                
+                this.results.forEach((result, index) => {
+                    const resultElement = document.createElement('div');
+                    resultElement.className = 'result-item';
+                    resultElement.innerHTML = `
+                        <div class="result-header">
+                            <div class="result-title">${result.filename}</div>
+                            <div class="risk-badge risk-${result.riskLevel}">${result.riskLevel}</div>
+                        </div>
+                        <div class="result-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">${result.statistics.detectionPercentage.toFixed(1)}%</div>
+                                <div class="stat-label">Detection</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.statistics.maxPCI.toFixed(3)}</div>
+                                <div class="stat-label">Max PCI</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.statistics.maxChlorophyll.toFixed(1)}</div>
+                                <div class="stat-label">Max Chl-a</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value">${result.statistics.maxBGA.toFixed(3)}</div>
+                                <div class="stat-label">Max BGA</div>
+                            </div>
+                        </div>
+                    `;
+                    content.appendChild(resultElement);
+                });
+                
+                panel.classList.add('active');
+            }
+            
+            toggleHeatmap() {
+                if (this.heatmapLayer) {
+                    this.map.removeLayer(this.heatmapLayer);
+                    this.heatmapLayer = null;
+                } else {
+                    this.generateHeatmap();
+                }
+            }
+            
+            generateHeatmap() {
+                if (this.results.length === 0) return;
+                
+                const heatmapData = this.results.map(result => [
+                    result.gpsCoords.lat,
+                    result.gpsCoords.lng,
+                    result.statistics.detectionPercentage / 100
+                ]);
+                
+                // Simple heatmap using circle markers with varying opacity
+                this.heatmapLayer = L.layerGroup();
+                
+                heatmapData.forEach(([lat, lng, intensity]) => {
+                    const circle = L.circle([lat, lng], {
+                        radius: 500,
+                        fillColor: '#ff0000',
+                        fillOpacity: intensity * 0.6,
+                        color: '#ff0000',
+                        opacity: intensity * 0.8,
+                        weight: 2
+                    });
+                    this.heatmapLayer.addLayer(circle);
+                });
+                
+                this.heatmapLayer.addTo(this.map);
+            }
+            
+            fitToData() {
+                if (this.markers.length === 0) return;
+                
+                const group = new L.featureGroup(this.markers);
+                this.map.fitBounds(group.getBounds().pad(0.1));
+            }
+            
+            exportData(format) {
+                if (this.results.length === 0) return;
+                
+                let data, filename, mimeType;
+                
+                switch (format) {
+                    case 'json':
+                        data = JSON.stringify(this.results, null, 2);
+                        filename = 'habs_detection_results.json';
+                        mimeType = 'application/json';
+                        break;
+                        
+                    case 'csv':
+                        data = this.resultsToCSV();
+                        filename = 'habs_detection_results.csv';
+                        mimeType = 'text/csv';
+                        break;
+                        
+                    case 'geojson':
+                        data = this.resultsToGeoJSON();
+                        filename = 'habs_detection_results.geojson';
+                        mimeType = 'application/geo+json';
+                        break;
+                }
+                
+                this.downloadFile(data, filename, mimeType);
+            }
+            
+            resultsToCSV() {
+                const headers = [
+                    'filename', 'latitude', 'longitude', 'risk_level', 
+                    'detection_percentage', 'avg_pci', 'max_pci', 
+                    'avg_chlorophyll', 'max_chlorophyll', 'avg_bga', 'max_bga'
+                ];
+                
+                const rows = this.results.map(result => [
+                    result.filename,
+                    result.gpsCoords.lat,
+                    result.gpsCoords.lng,
+                    result.riskLevel,
+                    result.statistics.detectionPercentage,
+                    result.statistics.avgPCI,
+                    result.statistics.maxPCI,
+                    result.statistics.avgChlorophyll,
+                    result.statistics.maxChlorophyll,
+                    result.statistics.avgBGA,
+                    result.statistics.maxBGA
+                ]);
+                
+                return [headers, ...rows].map(row => row.join(',')).join('\n');
+            }
+            
+            resultsToGeoJSON() {
+                const features = this.results.map(result => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [result.gpsCoords.lng, result.gpsCoords.lat]
+                    },
+                    properties: {
+                        filename: result.filename,
+                        riskLevel: result.riskLevel,
+                        detectionPercentage: result.statistics.detectionPercentage,
+                        avgPCI: result.statistics.avgPCI,
+                        maxPCI: result.statistics.maxPCI,
+                        avgChlorophyll: result.statistics.avgChlorophyll,
+                        maxChlorophyll: result.statistics.maxChlorophyll,
+                        avgBGA: result.statistics.avgBGA,
+                        maxBGA: result.statistics.maxBGA
+                    }
+                }));
+                
+                return JSON.stringify({
+                    type: 'FeatureCollection',
+                    features
+                }, null, 2);
+            }
+            
+            downloadFile(data, filename, mimeType) {
+                const blob = new Blob([data], { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+            
+            clearAll() {
+                // Clear markers
+                this.markers.forEach(marker => this.map.removeLayer(marker));
+                this.markers = [];
+                
+                // Clear results
+                this.results = [];
+                
+                // Clear processing queue
+                this.processingQueue = [];
+                document.getElementById('processingQueue').innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No images selected</p>';
+                
+                // Clear file input
+                document.getElementById('imageInput').value = '';
+                document.getElementById('processBtn').disabled = true;
+                
+                // Hide results panel
+                document.getElementById('resultsPanel').classList.remove('active');
+                
+                // Clear heatmap
+                if (this.heatmapLayer) {
+                    this.map.removeLayer(this.heatmapLayer);
+                    this.heatmapLayer = null;
+                }
+                
+                // Clear session storage
+                localStorage.removeItem('habsDetectorSession');
+            }
+            
+            saveSession() {
+                const sessionData = {
+                    results: this.results,
+                    settings: this.getCurrentSettings(),
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('habsDetectorSession', JSON.stringify(sessionData));
+            }
+            
+            loadSettings() {
+                const saved = localStorage.getItem('habsDetectorSession');
+                if (saved) {
+                    try {
+                        const sessionData = JSON.parse(saved);
+                        
+                        // Restore settings
+                        Object.keys(sessionData.settings).forEach(key => {
+                            const element = document.getElementById(key);
+                            if (element) {
+                                element.value = sessionData.settings[key];
+                                
+                                // Trigger change event to update display
+                                element.dispatchEvent(new Event('input'));
+                            }
+                        });
+                        
+                        // Restore results if recent (less than 1 hour old)
+                        if (Date.now() - sessionData.timestamp < 3600000) {
+                            this.results = sessionData.results;
+                            this.results.forEach(result => this.addResultToMap(result));
+                        }
+                    } catch (error) {
+                        console.warn('Failed to load saved session:', error);
+                    }
+                }
+            }
+        }
+        
+        // Initialize the application when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new DroneHABsDetector();
+            
+            // Handle responsive design
+            function handleResize() {
+                const sidebar = document.querySelector('.sidebar');
+                const toggleBtn = document.getElementById('toggleSidebar');
+                
+                if (window.innerWidth <= 768) {
+                    toggleBtn.style.display = 'block';
+                    sidebar.classList.remove('open');
+                } else {
+                    toggleBtn.style.display = 'none';
+                    sidebar.classList.remove('open');
+                }
+            }
+            
+            window.addEventListener('resize', handleResize);
+            handleResize();
+        });
+    </script>
+</body>
+</html>
